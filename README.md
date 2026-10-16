@@ -11,16 +11,16 @@ This course project (Natural Language Processing, University of Sydney, 2025) as
 
 ## 🛠️ Technical Architecture & Pipeline
 * **Data Pipeline:** Built a Python pipeline that turns the raw ATIS JSON into question–SQL pairs grouped by SQL template.
-* **Model Benchmarking:** Implemented and compared linear, feedforward, LSTM and Transformer models in **PyTorch**, framed as template classification.
-* **Data-Mixing Experiments:** Blended question-split data into query-split training at three ratios (25%, 50% and 75% question-split data).
-* **LLM Prompting:** Evaluated few-shot prompting of **[model]** through the OpenRouter API at 0, 5 and 40 shots, scored by exact-match accuracy.
+* **Models:** Implemented linear, feedforward, LSTM and Transformer models in **PyTorch**. Each classifies a question into one of 944 SQL templates and tags the tokens that fill the template's slots.
+* **Data-Mixing Experiments:** Blended question-split data into query-split training for the LSTM at three ratios (25%, 50% and 75% question-split data).
+* **LLM Prompting:** Built a few-shot prompting and exact-match evaluation pipeline for **Phi-4-reasoning-plus** through the OpenRouter API (0, 5 and 40 shots), the only part of the project that generates free-form SQL.
 
 ## 🔍 Leakage Audit
 The original write-up reported query-split accuracy rising from **0% to 23.05%** after mixing. Re-checking it showed the gain came from leakage, not generalisation:
 
 * **Source:** the query split itself is clean (its training set shares 0 of the 82 test templates). But the question split assigns individual sentences to splits, so its training and dev sets contain sentences from templates the query split holds out for test.
 * **Scale:** the 50/50 mix put 47 of the 82 test templates into training, affecting 298 of 347 test examples.
-* **Re-scored:** on test templates that never appear in training, accuracy is **0%** in both runs with saved results. Every correct answer came from a leaked template.
+* **Re-scored:** on test templates that never appear in training, accuracy is **0%** in both LSTM runs with saved results. Every correct answer came from a leaked template.
 
 | Run | Reported (all test) | Seen templates | Unseen templates only |
 |---|---|---|---|
@@ -31,15 +31,20 @@ This is what the design should produce: a template classifier can only output te
 
 ## 📊 Key Findings
 * **Data mixing doesn't create generalisation:** the query-split gains came entirely from leaked templates; on genuinely unseen templates, accuracy stayed at 0%.
-* **Data quantity beat architecture tuning:** scaling in-domain training data from 25% to 100% lifted every model family, with the Transformer peaking at 38.25% on [split].
-* **LLM prompting:** [few-shot results at 0, 5 and 40 shots].
+* **Best saved Transformer run:** 41.83% (187/447) exact match on the question split, where test templates also appear in training.
+
+## ⚠️ Limitations
+* Exact match marks semantically equivalent SQL as wrong.
+* The few-shot prompting outputs weren't saved, and the script scored the dev set, so no LLM results are reported here.
+* Some earlier ablation runs weren't saved, so only results with saved outputs are reported.
 
 ## 🧭 What I'd Do Next
 * Filter mixed-in data by template before training, so test templates stay unseen
 * Try a model that generates SQL token by token, which can in principle produce templates it has never seen
-* Report execution accuracy alongside exact match, since exact match marks equivalent SQL as wrong
+* Report execution accuracy alongside exact match
+* Save every run's predictions and metrics, so any result can be re-scored later
 
 ## 💻 Tech Stack
 * **Languages & Frameworks:** Python, PyTorch, SQL
 * **Techniques:** NLP, deep learning, prompt engineering, data ablation studies, leakage auditing
-* **Models:** linear, feedforward, LSTM, Transformer, [model]
+* **Models:** linear, feedforward, LSTM and Transformer template classifiers; Phi-4-reasoning-plus (prompting)
