@@ -29,8 +29,23 @@ The original write-up reported query-split accuracy rising from **0% to 23.05%**
 
 This is what the design should produce: a template classifier can only output templates it was trained on, so mixing data cannot fix its structural limit on a query split.
 
+The leak also reaches individual sentences, not just templates: 301 of the 347 query-split test sentences appear verbatim in the question split's train (269) or dev (32) set. In the 50% run, 77 of the 80 correct answers were sentences of that kind.
+
+### Leak-free rerun (October 2026)
+To confirm, I reran the experiment with one change: before training, every example whose SQL template is held out for the query-split test set was removed from the mixed training data and from the dev set. A leaky control on the same code checks that the setup reproduces the original result.
+
+| Run (LSTM, query-split test) | Removed from training | Training examples | Test accuracy |
+|---|---|---|---|
+| 50% mix, leaky control | 0 | 3,629 | 89/347 = 25.65% |
+| 50% mix, leak-free | 128 train + 32 dev | 3,470 | **0/347 = 0.00%** |
+| 25% mix, leak-free | 72 train + 32 dev | 3,730 | **0/347 = 0.00%** |
+
+The leak-free models still trained normally, reaching about 36% on the question-split dev set (0.361 for both), so the 0% is the template classifier's structural limit, not a broken run. The control's 25.65% sits close to the original 23.05%.
+
+How the rerun differs from the original: the experiment script was edited after the May 2025 runs, so the rerun matches the original run's saved settings (two-layer bidirectional LSTM, 256-dimensional embeddings and hidden state, 30 epochs, 50/50 and 25/75 mixes with the question-split dev set). Learning rate and dropout weren't recorded, so the script's defaults were used (1e-4 and 0.2). PyTorch was not seeded, so each figure comes from a single run.
+
 ## 📊 Key Findings
-* **Data mixing doesn't create generalisation:** the query-split gains came entirely from leaked templates; on genuinely unseen templates, accuracy stayed at 0%.
+* **Data mixing doesn't create generalisation:** the query-split gains came entirely from leaked templates. With the leak removed, accuracy on the query-split test set is 0% at both mixing ratios.
 * **Best saved Transformer run:** 41.83% (187/447) exact match on the question split, where test templates also appear in training.
 
 ## ⚠️ Limitations
@@ -39,7 +54,6 @@ This is what the design should produce: a template classifier can only output te
 * Some earlier ablation runs weren't saved, so only results with saved outputs are reported.
 
 ## 🧭 What I'd Do Next
-* Filter mixed-in data by template before training, so test templates stay unseen
 * Try a model that generates SQL token by token, which can in principle produce templates it has never seen
 * Report execution accuracy alongside exact match
 * Save every run's predictions and metrics, so any result can be re-scored later
