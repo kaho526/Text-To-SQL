@@ -7,16 +7,17 @@
 ## 📌 Project Overview
 Translating natural-language flight questions into SQL (ATIS dataset) is easy when test questions reuse SQL templates seen in training (question split), and much harder when every test template is new (query split).
 
-This course project (Natural Language Processing, University of Sydney, 2025) asked whether a data-centric approach, blending question-split data into query-split training, could help a template-based model generalise to unseen SQL templates. A later audit showed that it could not, and why.
+This group course project (Natural Language Processing, University of Sydney, 2025) asked whether a data-centric approach, blending question-split data into query-split training, could help a template-based model generalise to unseen SQL templates. A later audit showed that it could not, and why.
 
 ## 🛠️ Technical Architecture & Pipeline
 * **Data Pipeline:** Built a Python pipeline that turns the raw ATIS JSON into question–SQL pairs grouped by SQL template.
-* **Models:** Implemented linear, feedforward, LSTM and Transformer models in **PyTorch**. Each classifies a question into one of 944 SQL templates and tags the tokens that fill the template's slots.
+* **Models:** Built linear, feedforward and LSTM classifiers in **PyTorch** (a teammate built the Transformer). Each maps a question to one of 944 SQL templates and tags the tokens that fill the template's slots.
+* **Data-Quantity Ablation:** On the question split, the LSTM rose from 17.00% to 27.06% exact match as training data grew from 25% to 100%.
 * **Data-Mixing Experiments:** Blended question-split data into query-split training for the LSTM at three ratios (25%, 50% and 75% question-split data).
 * **LLM Prompting:** Built a few-shot prompting and exact-match evaluation pipeline for **Phi-4-reasoning-plus** through the OpenRouter API (0, 5 and 40 shots), the only part of the project that generates free-form SQL.
 
 ## 🔍 Leakage Audit
-The original write-up reported query-split accuracy rising from **0% to 23.05%** after mixing. Re-checking it showed the gain came from leakage, not generalisation:
+The original write-up reported query-split accuracy rising from **0% to 23.05%** after mixing. Re-checking it traced the gain to training–test overlap between the two dataset splits, not generalisation:
 
 * **Source:** the query split itself is clean (its training set shares 0 of the 82 test templates). But the question split assigns individual sentences to splits, so its training and dev sets contain sentences from templates the query split holds out for test.
 * **Scale:** the 50/50 mix put 47 of the 82 test templates into training, affecting 298 of 347 test examples.
@@ -46,7 +47,8 @@ How the rerun differs from the original: the experiment script was edited after 
 
 ## 📊 Key Findings
 * **Data mixing doesn't create generalisation:** the query-split gains came entirely from leaked templates. With the leak removed, accuracy on the query-split test set is 0% at both mixing ratios.
-* **Best saved Transformer run:** 41.83% (187/447) exact match on the question split, where test templates also appear in training.
+* **More data helps on the question split:** LSTM 17.00% → 27.06% from 25% to 100% of the training data.
+* **Best saved Transformer run (teammate's model):** 41.83% (187/447) exact match on the question split, where test templates also appear in training.
 
 ## ⚠️ Limitations
 * Exact match marks semantically equivalent SQL as wrong.
